@@ -12,19 +12,21 @@
 ' ----------------------------------------------------- 
 
 'Credentials List
-g_SERUsername = "SANITIZED"
-g_SERPassword = "SANITIZED"
-' GLA
-g_MarketUsername = "SANITIZED" 
-g_MarketPassword = "SANITIZED"
-g_MarketSecret = "SANITIZED"
-'CF
-'g_MarketUsername = "SANITIZED" 
-'g_MarketPassword = "SANITIZED"
-'g_MarketSecret = "SANITIZED"
-'g_MarketSecret = "SANITIZED"
+g_SERUsername = "*****"
+g_SERPassword = "*****"
+
+
+' Local Market Username. Sanatized for publishing
+g_MarketUsername = "*****" 
+g_MarketPassword = "*****"
+g_MarketSecret = "*****"
+g_marketACS = "*****"
+
+g_waitForTimer = 50
 
 Sub Main()
+	' Synchronous
+	'crt.Screen.Synchronous = True
 	
 	' Ask the user where the list of IADs is
 	filePath = crt.Dialog.FileOpenDialog("Select Subnet List", "Open", "%USERPROFILE%\Desktop\IAD_List.txt")
@@ -138,6 +140,9 @@ Sub Main()
 					' Cancel previous session ^C
 					crt.Screen.Send chr(3)
 					
+					' Courtesy timer
+					crt.sleep 250
+					
 					' Try again with market password
 					loginResult = SSHLogIntoDevice(strLine, g_MarketUsername, g_MarketPassword)
 					
@@ -177,6 +182,7 @@ Sub Main()
 				
 				' Did the ACS login work?
 				if(loginResult = 1) then
+				
 					' Add the 'Tacacs?' result
 					outputLine = outputLine & "Yes,"
 					
@@ -203,23 +209,23 @@ Sub Main()
 					crt.sleep 1000
 					
 				else ' No ACS
-					' Add the 'Tacacs?' result
-					outputLine = outputLine & "No,"
 					
 					' Cancel previous session ^C
 					crt.Screen.Send chr(3)
 					
-					crt.sleep 1000
+					crt.sleep 8000
 					
 					crt.Screen.Send chr(3)
 					
-					crt.sleep 3000					
+					crt.sleep 10000					
 					
 					' Try again with market password
 					loginResult = TelnetLogIntoDevice(strLine, g_MarketUsername, g_MarketPassword)
 					
 					' Did the Market login work?
 					if(loginResult = 1) then
+						' Add the 'Tacacs?' result
+						outputLine = outputLine & "No,"
 					
 						' Mark this as an 'IAD' device
 						outputLine = outputLine & "IAD,"
@@ -234,18 +240,21 @@ Sub Main()
 						crt.sleep 1000
 					
 					else
+						if(loginResult = 4) then
+						' Add the 'Tacacs?' result
 						
+						outputLine = outputLine & "Bad Pass,"
 						' Cancel previous session ^C
 						crt.Screen.Send chr(3)
 						
-						crt.sleep 1000
+						crt.sleep 8000
 						
 						crt.Screen.Send chr(3)
 						
-						crt.sleep 3000					
+						crt.sleep 10000					
 					end if
-					
 				end if
+			end if
 			' ********************************************** No Connectivity Section ******************************************************				
 			else
 				outputLine = outputLine & "N/A,No,N/A,N/A,N/A,Device appears to be offline"
@@ -271,23 +280,26 @@ Function SSHLogIntoDevice(IPaddress, Username, Password)
 	crt.Screen.Send "ssh -o StrictHostKeyChecking=no -o ConnectTimeout=2 " & Username & "@" & IPAddress & chr(13)
 	
 	' Give enough time for a connection and a response
-	valid = crt.Screen.WaitForStrings("password","Password","passcode","Passcode", 2)
+	valid = crt.Screen.WaitForStrings("password","Password","passcode","Passcode", "Connection timed", g_waitForTimer)
 	
-	if (valid > 0) then ' We were prompted for password
+	' Courtesy timer
+	crt.sleep 250
+	
+	if (valid > 0 AND valid < 5) then ' We were prompted for password
 		
 		' Try the password
 		crt.Screen.Send Password & chr(13)
 		
 		' Wait for the result
-		passvalid = crt.Screen.WaitForStrings(">","#", 3)
+		passvalid = crt.Screen.WaitForStrings(">","#","password","Password","passcode","Passcode", g_waitForTimer)
 		
-		if(passvalid > 0 ) then
+		if(passvalid > 0 AND passvalid < 3) then
 			'Login was successful
 			SSHLogIntoDevice = 1
 			
 			' Courtesy timer
 			crt.sleep 250
-			
+
 			exit function
 		else
 			' Login unsuccessful
@@ -295,7 +307,7 @@ Function SSHLogIntoDevice(IPaddress, Username, Password)
 			
 			' Courtesy timer
 			crt.sleep 250
-			
+
 			exit function
 		end if
 	else ' Password prompt never came
@@ -314,9 +326,9 @@ Function TelnetLogIntoDevice(IPaddress, Username, Password)
 	crt.Screen.Send "telnet " & IPAddress & chr(13)
 	
 	' Give enough time for a connection and a response
-	valid = crt.Screen.WaitForStrings("Username","username", 4)
+	valid = crt.Screen.WaitForStrings("Username","username", "Password", "password", g_waitForTimer)
 	
-	if (valid > 0) then ' We were prompted for username
+	if (valid > 0 AND valid < 3) then ' We were prompted for username
 		
 		' Courtesy timer
 		crt.sleep 500	
@@ -325,7 +337,7 @@ Function TelnetLogIntoDevice(IPaddress, Username, Password)
 		crt.Screen.Send Username & chr(13)
 		
 		' Give enough time for a connection and a response
-		valid = crt.Screen.WaitForStrings("Password","password","passcode","Passcode", 4)
+		valid = crt.Screen.WaitForStrings("Password","password","passcode","Passcode", g_waitForTimer)
 		
 		if (valid > 0) then ' We were prompted for password
 		
@@ -333,9 +345,9 @@ Function TelnetLogIntoDevice(IPaddress, Username, Password)
 			crt.Screen.Send  Password & chr(13)		
 
 			' Wait for the result
-			passvalid = crt.Screen.WaitForStrings(">","#", 5)
+			passvalid = crt.Screen.WaitForStrings(">","#","denied", g_waitForTimer)
 			
-			if(passvalid > 0 ) then
+			if(passvalid > 0 AND passvalid < 3) then
 				'Login was successful
 				TelnetLogIntoDevice = 1
 				
@@ -343,6 +355,16 @@ Function TelnetLogIntoDevice(IPaddress, Username, Password)
 				crt.sleep 500
 				
 				exit function
+			elseif(passvalid = 3) then' Bad password
+				
+				' Login unsuccessful
+				TelnetLogIntoDevice = 4
+				
+				' Courtesy timer
+				crt.sleep 500
+				
+				exit function
+			
 			else
 				' Login unsuccessful
 				TelnetLogIntoDevice = 0
@@ -359,6 +381,32 @@ Function TelnetLogIntoDevice(IPaddress, Username, Password)
 			' Courtesy timer
 			crt.sleep 250
 		end if
+	elseif (valid > 2) then ' Only asked for password
+	
+		' Send the command to attempt a login
+		crt.Screen.Send  Password & chr(13)		
+
+		' Wait for the result
+		passvalid = crt.Screen.WaitForStrings(">","#","denied", 10)
+		
+		if(passvalid > 0 AND passvalid < 3) then
+			'Login was successful
+			TelnetLogIntoDevice = 1
+			
+			' Courtesy timer
+			crt.sleep 500
+			
+			exit function
+		else
+			' Login unsuccessful
+			TelnetLogIntoDevice = 4
+			
+			' Courtesy timer
+			crt.sleep 500
+			
+			exit function
+		end if
+	
 	else ' Never prompted for username
 		
 		' Timed out
@@ -381,13 +429,13 @@ Function CheckForSSHAccess(IPAddress)
 	crt.Screen.Send "ssh -o StrictHostKeyChecking=no -o ConnectTimeout=2 InvalidUser@" & IPAddress & chr(13)
 	
 	' Give enough time for a connection and a response
-	valid = crt.Screen.WaitForStrings("password","Password","passcode","Passcode", 2)
+	valid = crt.Screen.WaitForStrings("password","Password","passcode","Passcode", "Connection timed", "Connection refused", g_waitForTimer)
 	
 	' Courtesy timer
 	crt.sleep 250
 	
 	' Check if we were given the password prompt or not
-	if(valid > 0) then
+	if(valid > 0 AND valid < 5) then
 		' SSH responded, clear to login
 		CheckForSSHAccess = 1
 		
@@ -402,14 +450,8 @@ Function CheckForSSHAccess(IPAddress)
 	
 	' Check for a "Connection refused"
 	
-	' Get the row number of the route result
-	row = crt.screen.CurrentRow - 1
-
-	' Get the contents of that row
-	rowString = crt.Screen.Get(row, 1, row, 80)
-	
 	' Was the connection refused, or did the connection timeout?
-	if(InStr(rowString, "Connection refused") > 0) then
+	if(valid = 6) then
 
 		' Connection was refused
 		CheckForSSHAccess = 2
@@ -431,14 +473,48 @@ Function CheckForSSHAccess(IPAddress)
 End Function
 
 Function IsAnIAD()
+
+	' Make sure this isn't an ASR first
+	' Get the row number of the route result
+	row = crt.screen.CurrentRow
+
+	' Get the contents of that row
+	rowString = crt.Screen.Get(row, 1, row, 80)
+	
+	' Look for 'RP/0'
+	if(InStr(rowString, "RP/0") > 0) then
+		
+		' Not an IAD
+		IsAnIAD = 0
+		
+		' Courtesy timer
+		crt.sleep 250
+		
+		Exit Function
+	
+	end if
+	
 	' Courtesy timer
 	crt.sleep 250
 
 	' Execute a 'show version'
 	crt.Screen.Send "show version | inc IAD" & chr(13)
 	
+	' TACACS server check
+	tacacsUpdateNeeded = 0
+	
+	' Wait t3 seconds. If this command takes longer, then we are having tacacs issues
+	valid = crt.Screen.WaitForStrings("#", 3)
+	
+	if(valid < 1) then
+		tacacsUpdateNeeded = 1
+		
+		' Finish waiting
+		valid = crt.Screen.WaitForStrings("#", g_waitForTimer)
+	end if
+	
 	' Courtesy timer
-	crt.sleep 750
+	crt.sleep 250
 	
 	' Get the row number of the route result
 	row = crt.screen.CurrentRow - 1
@@ -451,7 +527,15 @@ Function IsAnIAD()
 	
 		' Yes we verified this is indeed an IAD
 		IsAnIAD = 1
-
+		
+		if(tacacsUpdateNeeded = 1) then
+			
+			' Courtesy timer
+			crt.sleep 250
+			
+			' Update the tacacs servers if needed
+			result = UpdateACS()
+		end if
 	else
 	
 		' Not an IAD
@@ -610,18 +694,27 @@ Function ExecCheck()
 		Exit Function
 		
 	else
-	
+		' Mark whether we need to update the TACACS+ server list
+		tacacsUpdateNeeded = 0
+		
 		' Enable privileged exec mode
 		crt.Screen.Send "enable" & chr(13)
 		
-		' Courtesy timer
-		crt.sleep 500
+		' Wait 3 seconds for a response. More than 3 seconds indicates the ACS server(s) is/are unreachable
+		valid = crt.Screen.WaitForStrings("password","Password","passcode","Passcode", 3)
+		
+		if(valid = 0) then
+			tacacsUpdateNeeded = 1
+
+			' Finish waiting
+			valid = crt.Screen.WaitForStrings("password","Password","passcode","Passcode", g_waitForTimer)
+		end if
 		
 		' Try the password
 		crt.Screen.Send g_MarketSecret & chr(13)
 		
-		' Courtesy timer
-		crt.sleep 500
+		' Wait 3 seconds for the enable attempt, if this times out, it is most likely due to wrong tacacs servers
+		valid = crt.screen.WaitForStrings("#","#", g_waitForTimer)
 		
 		' Get the row number of the current row
 		row = crt.screen.CurrentRow
@@ -634,6 +727,13 @@ Function ExecCheck()
 		
 			' Was able to log in with the exec pass
 			ExecCheck = 1
+			
+			' If needed, update the ACS servers before continuing
+			if(tacacsUpdateNeeded = 1) then
+			
+				result = UpdateACS()
+			end if
+			
 			Exit Function
 			
 		else
@@ -654,8 +754,11 @@ Function GetAccessClass()
 	' Send the request to show the line vty configuration
 	crt.Screen.Send "show run | section line vty 0 4" & chr(13)
 	
+	' Wait for the print out to finish
+	valid = crt.Screen.WaitForString("#",5)
+	
 	' Courtesy timer
-	crt.sleep 2000
+	crt.sleep 250
 	
 	'Check each of the last 15 lines to see if we can find the access-class
 	lineCount = 1
@@ -749,11 +852,11 @@ End Function
 
 Function AddToList(addressToAdd, aclNumber)
 
-	' Send the request to view the entries in the access-list
+		' Send the request to view the entries in the access-list
 	crt.Screen.Send "show access-lists " & aclNumber & chr(13)
-	
+
 	' Courtesy timer
-	crt.sleep 1500
+	crt.sleep 5000
 
 	' ************** Get the sequence number of the last entry (DENY) **************
 	' Get the row number of the current row
@@ -828,4 +931,43 @@ Function AddToList(addressToAdd, aclNumber)
 	end if
 
 
+End Function
+
+Function UpdateACS()
+
+		' Send the request to enter global configuration mode
+		crt.Screen.Send "conf t" & chr(13)
+		
+		' Wait for the entering of global config to finish
+		valid = crt.Screen.WaitForString("config",g_waitForTimer)
+		
+		' Code update
+		crt.Screen.Send "no tacacs-server host 68.6.16.42" & chr(13)
+		crt.sleep 100	
+		crt.Screen.Send "no tacacs-server host 68.1.18.42" & chr(13)
+		crt.sleep 100	
+		crt.Screen.Send "no tacacs-server host 68.12.16.42" & chr(13)
+		crt.sleep 100	
+		crt.Screen.Send "no tacacs-server host 68.10.16.41" & chr(13)
+		crt.sleep 100	
+		crt.Screen.Send "tacacs-server host 68.110.132.230 port 49" & chr(13)
+		crt.sleep 100	
+		crt.Screen.Send "tacacs-server host 184.185.14.11 port 49" & chr(13)
+		crt.sleep 100	
+		crt.Screen.Send "tacacs-server key " & g_marketACS & chr(13)
+		crt.sleep 100	
+		
+		' Send the request to exit global configuration mode
+		crt.Screen.Send "end" & chr(13)
+		crt.sleep 100
+		
+		' Save the configuration
+		crt.Screen.Send "wr" & chr(13)
+	
+		' Wait for the save to finish
+		success = crt.Screen.WaitForString("[OK]", 10)
+		
+		' Courtesy timer
+		crt.sleep 750	
+		
 End Function
