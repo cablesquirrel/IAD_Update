@@ -16,7 +16,7 @@ g_SERUsername = "*****"
 g_SERPassword = "*****"
 
 
-' Local Market Username. Sanatized for publishing
+' Local Market Username. Sanitized for publishing
 g_MarketUsername = "*****" 
 g_MarketPassword = "*****"
 g_MarketSecret = "*****"
